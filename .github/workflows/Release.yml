@@ -1,20 +1,143 @@
 name: Release
 
-# Placeholder release workflow for NeatWhisky.
-# The upstream Whisky release workflow (Discord webhook + Whisky-App Homebrew cask)
-# has been removed because it referenced another org's secrets and cask.
-# TODO (M12 分发): sign + notarize the app, attach the DMG to the GitHub Release,
-# and bump the NeatWhisky Homebrew cask.
+# Builds NeatWhisky, (optionally) Developer ID-signs + notarizes it, packages a
+# DMG, and attaches it to the GitHub Release.
+#
+# Signing/notarization run only when the repo provides these secrets — otherwise
+# an unsigned build is produced (works via right-click → Open). To ship a
+# "double-click just works" build for beginners, configure:
+#   MACOS_CERT_P12        base64 of the "Developer ID Application" .p12
+#   MACOS_CERT_PASSWORD   password for that .p12
+#   KEYCHAIN_PASSWORD     any throwaway password for the temp keychain
+#   MACOS_SIGN_IDENTITY   e.g. "Developer ID Application: Name (TEAMID)"
+#   AC_API_KEY_ID         App Store Connect API key id (for notarytool)
+#   AC_API_ISSUER_ID      App Store Connect issuer id
+#   AC_API_KEY_P8         base64 of the App Store Connect .p8 key
+# Optional, to auto-update a Homebrew tap:
+#   HOMEBREW_TAP_TOKEN    PAT with write access to the tap repo
 
 on:
   release:
     types: [published]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
-  placeholder:
-    name: Release (not yet configured)
-    runs-on: ubuntu-latest
+  release:
+    name: Build, sign, notarize & publish
+    runs-on: macos-15
+    env:
+      SCHEME: Whisky
+      APP_NAME: NeatWhisky
+      ARCHIVE_PATH: build/NeatWhisky.xcarchive
+      EXPORT_PATH: build/export
     steps:
-      - name: Notice
-        run: echo "NeatWhisky release pipeline is not configured yet. See M12 in docs/build-plan.md."
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode 16
+        run: sudo xcode-select -s /Applications/Xcode_16.app
+
+      - name: Detect signing secrets
+        id: signing
+        run: echo "available=${{ secrets.MACOS_CERT_P12 != '' }}" >> "$GITHUB_OUTPUT"
+
+      - name: Import signing certificate
+        if: steps.signing.outputs.available == 'true'
+        env:
+          MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          KEYCHAIN="$RUNNER_TEMP/build.keychain-db"
+          echo "$MACOS_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" \
+            -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+
+      - name: Archive (signed)
+        if: steps.signing.outputs.available == 'true'
+        run: |
+          set -euo pipefail
+          xcodebuild -project Whisky.xcodeproj -scheme "$SCHEME" \
+            -configuration Release -archivePath "$ARCHIVE_PATH" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="${{ secrets.MACOS_SIGN_IDENTITY }}" \
+            -skipPackagePluginValidation \
+            archive
+
+      - name: Archive (unsigned)
+        if: steps.signing.outputs.available != 'true'
+        run: |
+          set -euo pipefail
+          xcodebuild -project Whisky.xcodeproj -scheme "$SCHEME" \
+            -configuration Release -archivePath "$ARCHIVE_PATH" \
+            CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
+            -skipPackagePluginValidation \
+            archive
+
+      - name: Stage app bundle
+        run: |
+          set -euo pipefail
+          mkdir -p "$EXPORT_PATH"
+          cp -R "$ARCHIVE_PATH/Products/Applications/Whisky.app" "$EXPORT_PATH/$APP_NAME.app"
+
+      - name: Notarize & staple
+        if: steps.signing.outputs.available == 'true'
+        env:
+          AC_API_KEY_ID: ${{ secrets.AC_API_KEY_ID }}
+          AC_API_ISSUER_ID: ${{ secrets.AC_API_ISSUER_ID }}
+          AC_API_KEY_P8: ${{ secrets.AC_API_KEY_P8 }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/keys"
+          echo "$AC_API_KEY_P8" | base64 --decode > "$RUNNER_TEMP/keys/AuthKey.p8"
+          ditto -c -k --keepParent "$EXPORT_PATH/$APP_NAME.app" "$RUNNER_TEMP/notarize.zip"
+          xcrun notarytool submit "$RUNNER_TEMP/notarize.zip" \
+            --key "$RUNNER_TEMP/keys/AuthKey.p8" \
+            --key-id "$AC_API_KEY_ID" \
+            --issuer "$AC_API_ISSUER_ID" \
+            --wait
+          xcrun stapler staple "$EXPORT_PATH/$APP_NAME.app"
+
+      - name: Resolve version
+        id: version
+        run: |
+          TAG="${GITHUB_REF_NAME:-dev}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Create DMG
+        run: |
+          set -euo pipefail
+          brew install create-dmg
+          DMG="$APP_NAME-${{ steps.version.outputs.tag }}.dmg"
+          create-dmg \
+            --volname "$APP_NAME" \
+            --window-size 540 380 \
+            --icon-size 110 \
+            --icon "$APP_NAME.app" 150 190 \
+            --app-drop-link 390 190 \
+            --no-internet-enable \
+            "$DMG" "$EXPORT_PATH/$APP_NAME.app" || \
+          create-dmg "$DMG" "$EXPORT_PATH/$APP_NAME.app"
+          echo "DMG_PATH=$DMG" >> "$GITHUB_ENV"
+
+      - name: Upload DMG to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.DMG_PATH }}
+
+      - name: Upload DMG artifact
+        if: github.event_name != 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-dmg
+          path: ${{ env.DMG_PATH }}

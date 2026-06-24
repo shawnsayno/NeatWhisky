@@ -48,6 +48,19 @@ stating that you modified it"). It will grow as milestones land.
   creates a dedicated Steam bottle, downloads and silently installs the latest
   official Steam (`SteamSetup.exe /S`), applies the Steam fixes, reports progress,
   and rolls back the bottle on failure.
+- **Onboarding wizard UI** (`SteamSetupWizardView` + `SteamSetupViewModel`): a
+  first-run "开箱向导" with one-tap start, live progress and a done/error state,
+  plus a download-mirror selector; entry points added to the main window and the
+  empty state.
+- **Bottle-detail Steam section** (`SteamFixView`): shows recipe status and a
+  one-tap "一键适配 / 重新修复" action.
+- **Launch-time self-heal**: `RecipeRegistry.selfHeal` runs before every program
+  launch (hooked into `Program.runInWine`), re-injecting the Steam wrapper if a
+  Steam update reverted it.
+- **Release pipeline** (`.github/workflows/Release.yml`): builds, optionally
+  Developer ID-signs + notarizes, packages a DMG and attaches it to the GitHub
+  Release (degrades to an unsigned build without secrets); plus a Homebrew Cask
+  template (`homebrew/neatwhisky.rb`).
 
 ## Upstream credits & acknowledgments
 

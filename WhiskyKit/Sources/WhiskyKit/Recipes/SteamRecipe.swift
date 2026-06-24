@@ -115,6 +115,19 @@ public struct SteamRecipe: AppRecipe {
         progress?(RecipeStep(title: "Steam fixes applied", fraction: 1.0))
     }
 
+    public func prelaunchHeal(in bottle: Bottle) async throws {
+        guard await detect(in: bottle) else { return }
+        // Re-assert launch options and re-inject the wrapper. Both are fast,
+        // local, idempotent operations. `injectWrapper` no-ops if Steam's CEF
+        // hasn't been downloaded yet, and refreshes the backup if Steam reverted
+        // our wrapper since the last launch.
+        try RecipeTools.setProgramSettings(
+            bottle: bottle, exeDriveCSubpath: Self.steamExeSubpath,
+            arguments: Self.launchArguments, locale: Self.preferredLocale()
+        )
+        try injectWrapper(in: bottle)
+    }
+
     public func repair(in bottle: Bottle, progress: RecipeProgress?) async throws {
         progress?(RecipeStep(title: "Re-applying Steam fixes", fraction: 0.2))
         // Re-assert launch options, then re-inject the wrapper (the part Steam

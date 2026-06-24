@@ -17,6 +17,7 @@
 //
 
 import Foundation
+import os.log
 
 /// The health of an ``AppRecipe`` with respect to a bottle.
 public enum RecipeStatus: Sendable, Equatable {
@@ -91,6 +92,13 @@ public protocol AppRecipe: Sendable {
 
     /// Report the current health of the recipe for the bottle.
     func status(in bottle: Bottle) async -> RecipeStatus
+
+    /// A fast, idempotent heal run right before the app launches.
+    ///
+    /// Unlike `apply`, this must avoid slow/network work (no font downloads
+    /// etc.) — it only re-asserts fixes that tend to get reverted (such as the
+    /// Steam `steamwebhelper` wrapper) so launching is always safe.
+    func prelaunchHeal(in bottle: Bottle) async throws
 }
 
 public extension AppRecipe {
@@ -98,6 +106,9 @@ public extension AppRecipe {
     func repair(in bottle: Bottle, progress: RecipeProgress?) async throws {
         try await apply(to: bottle, progress: progress)
     }
+
+    /// By default, no pre-launch healing is needed.
+    func prelaunchHeal(in bottle: Bottle) async throws {}
 }
 
 /// The registry of recipes NeatWhisky ships with.
@@ -113,5 +124,21 @@ public enum RecipeRegistry {
             result.append(recipe)
         }
         return result
+    }
+
+    /// Run every applicable recipe's fast pre-launch heal. Call this right
+    /// before launching a program so reverted fixes are restored automatically
+    /// (e.g. the Steam wrapper after a Steam self-update). Best-effort: failures
+    /// are logged but never block the launch.
+    public static func selfHeal(bottle: Bottle) async {
+        for recipe in await applicable(to: bottle) {
+            do {
+                try await recipe.prelaunchHeal(in: bottle)
+            } catch {
+                Logger.wineKit.warning(
+                    "Pre-launch heal for `\(recipe.id)` failed: \(error.localizedDescription)"
+                )
+            }
+        }
     }
 }

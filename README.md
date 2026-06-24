@@ -51,8 +51,17 @@ On a stock modern-Wine setup, Steam on Apple Silicon is broken in several ways:
 
 ## Status
 
-Early development. See the build plan in [`docs/`](docs/) and the technical
-deep-dive in [`docs/how-it-works.html`](docs/how-it-works.html).
+The one-click experience is built: the onboarding wizard, the fix engine, the
+Steam recipe (CJK fonts, black-window + restart-loop wrapper, launch options),
+the self-heal on launch, and the headless bootstrapper are all implemented.
+
+Two things are needed before a public, double-click-ready download:
+
+- a hosted NeatWhisky Wine 11.x build (Wine + DXVK + MoltenVK, no GPTK/CrossOver), and
+- a Developer ID-signed + notarized release (the CI pipeline is in place).
+
+See the build plan in [`docs/`](docs/) and the technical deep-dive in
+[`docs/how-it-works.html`](docs/how-it-works.html).
 
 ## Requirements
 

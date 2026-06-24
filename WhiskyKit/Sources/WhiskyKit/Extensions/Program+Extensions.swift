@@ -34,6 +34,9 @@ extension Program {
         let environment = generateEnvironment()
 
         Task.detached(priority: .userInitiated) {
+            // M11 self-heal: restore any reverted per-app fixes (e.g. the Steam
+            // steamwebhelper wrapper) before launching.
+            await RecipeRegistry.selfHeal(bottle: self.bottle)
             do {
                 try await Wine.runProgram(
                     at: self.url, args: arguments, bottle: self.bottle, environment: environment

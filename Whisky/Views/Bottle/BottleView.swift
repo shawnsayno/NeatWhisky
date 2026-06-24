@@ -47,6 +47,7 @@ struct BottleView: View {
                 }
                 .padding()
                 Form {
+                    SteamFixView(bottle: bottle)
                     NavigationLink(value: BottleStage.programs) {
                         Label("tab.programs", systemImage: "list.bullet")
                     }

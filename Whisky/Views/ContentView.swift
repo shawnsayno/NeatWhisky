@@ -28,6 +28,7 @@ struct ContentView: View {
 
     @State private var selected: URL?
     @State private var showBottleCreation: Bool = false
+    @State private var showSteamWizard: Bool = false
     @State private var bottlesLoaded: Bool = false
     @State private var showBottleSelection: Bool = false
     @State private var newlyCreatedBottleURL: URL?
@@ -44,6 +45,14 @@ struct ContentView: View {
             detail
         }
         .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    showSteamWizard.toggle()
+                } label: {
+                    Image(systemName: "gamecontroller")
+                        .help("一键安装 Steam")
+                }
+            }
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     showBottleCreation.toggle()
@@ -73,6 +82,9 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showBottleCreation) {
             BottleCreationView(newlyCreatedBottleURL: $newlyCreatedBottleURL)
+        }
+        .sheet(isPresented: $showSteamWizard) {
+            SteamSetupWizardView(showWizard: $showSteamWizard)
         }
         .sheet(isPresented: $showSetup) {
             SetupView(showSetup: $showSetup, firstTime: false)
@@ -176,7 +188,24 @@ struct ContentView: View {
             }
         } else {
             if (bottleVM.bottles.isEmpty || bottleVM.countActive() == 0) && bottlesLoaded {
-                VStack {
+                VStack(spacing: 16) {
+                    Text("新手推荐：一键安装并适配 Steam，全程自动。")
+                        .foregroundStyle(.secondary)
+                    Button {
+                        showSteamWizard.toggle()
+                    } label: {
+                        HStack {
+                            Image(systemName: "gamecontroller.fill")
+                            Text("一键安装 Steam")
+                        }
+                        .padding(6)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.accentColor)
+
+                    Divider()
+                        .frame(width: 200)
+
                     Text("main.createFirst")
                     Button {
                         showBottleCreation.toggle()
@@ -187,8 +216,7 @@ struct ContentView: View {
                         }
                         .padding(6)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.accentColor)
+                    .buttonStyle(.bordered)
                 }
             }
         }
