@@ -90,7 +90,10 @@ public enum EnhancedSync: Codable, Equatable {
 }
 
 public struct BottleWineConfig: Codable, Equatable {
-    static let defaultWineVersion = SemanticVersion(7, 7, 0)
+    // NeatWhisky ships Wine Staging 11.x instead of Whisky's frozen Wine 7.7.
+    // Bottles are tagged with this version; `BottleSettings.decode` flags bottles
+    // created with an older version so the prefix can be updated (`wineboot -u`).
+    static let defaultWineVersion = SemanticVersion(11, 10, 0)
     var wineVersion: SemanticVersion = Self.defaultWineVersion
     var windowsVersion: WinVersion = .win10
     var enhancedSync: EnhancedSync = .msync

@@ -19,9 +19,20 @@ zero-to-playing, one-click experience for Steam on Apple Silicon.
 This list is maintained for GPL-3.0 compliance (§5: "carry prominent notices
 stating that you modified it"). It will grow as milestones land.
 
-- Renamed product to **NeatWhisky**; changed bundle identifiers to `app.neatwhisky*`.
-- (Planned) Bundle a modern Wine Staging 11.x build instead of Wine 7.7, with a
-  `wine64 -> wine` compatibility shim for WoW64 builds.
+- Renamed product to **NeatWhisky**; changed bundle identifiers to `app.neatwhisky*`;
+  repointed in-app website/GitHub links to the NeatWhisky repository.
+- Repointed the bundled-Wine download source from `data.getwhisky.app` to a
+  centralized, mirror-ready `WhiskyWineSource` (NeatWhisky GitHub release assets),
+  laying groundwork for switchable mirrors.
+- Targets a modern **Wine Staging 11.x** build instead of Wine 7.7: bumped the
+  default bottle Wine version to 11.10.0, added a `wine64 -> wine` compatibility
+  shim created on install, and made `Wine.wineBinary` resolve `wine64`-or-`wine`
+  at runtime so WoW64 builds work.
+- Added `Wine.bootUpdate(bottle:)` (`wineboot -u`) so an existing bottle's prefix
+  can be refreshed after the bundled Wine is upgraded (auto-trigger wired with the
+  Bootstrapper / bottle-open flow).
+- Switched the `WhiskyKit` Swift package dependency URL from SSH to HTTPS so the
+  package and CI build without requiring an SSH key.
 - (Planned) Full open-source graphics stack only (Wine + DXVK + MoltenVK);
   NeatWhisky does **not** bundle GPTK / CrossOver components.
 - Added a **Steam fix** layer (`SteamFix/`): a `steamwebhelper` wrapper that

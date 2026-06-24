@@ -22,8 +22,19 @@ import os.log
 public class Wine {
     /// URL to the installed `DXVK` folder
     private static let dxvkFolder: URL = WhiskyWineInstaller.libraryFolder.appending(path: "DXVK")
-    /// Path to the `wine64` binary
-    public static let wineBinary: URL = WhiskyWineInstaller.binFolder.appending(path: "wine64")
+    /// Path to the `wine` binary.
+    ///
+    /// Modern Wine (11.x, WoW64) ships a single `wine` binary, whereas older
+    /// builds shipped a separate `wine64`. Resolve whichever exists, preferring
+    /// `wine64` for backwards compatibility with legacy installs.
+    public static var wineBinary: URL {
+        let binFolder = WhiskyWineInstaller.binFolder
+        let wine64 = binFolder.appending(path: "wine64")
+        if FileManager.default.fileExists(atPath: wine64.path) {
+            return wine64
+        }
+        return binFolder.appending(path: "wine")
+    }
     /// Parth to the `wineserver` binary
     private static let wineserverBinary: URL = WhiskyWineInstaller.binFolder.appending(path: "wineserver")
 
@@ -124,19 +135,22 @@ public class Wine {
     }
 
     public static func generateTerminalEnvironmentCommand(bottle: Bottle) -> String {
+        // Resolve the actual binary name (`wine64` on legacy builds, `wine` on
+        // modern WoW64 builds) so the shell aliases work regardless of layout.
+        let wineBin = wineBinary.lastPathComponent
         var cmd = """
         export PATH=\"\(WhiskyWineInstaller.binFolder.path):$PATH\"
-        export WINE=\"wine64\"
-        alias wine=\"wine64\"
-        alias winecfg=\"wine64 winecfg\"
-        alias msiexec=\"wine64 msiexec\"
-        alias regedit=\"wine64 regedit\"
-        alias regsvr32=\"wine64 regsvr32\"
-        alias wineboot=\"wine64 wineboot\"
-        alias wineconsole=\"wine64 wineconsole\"
-        alias winedbg=\"wine64 winedbg\"
-        alias winefile=\"wine64 winefile\"
-        alias winepath=\"wine64 winepath\"
+        export WINE=\"\(wineBin)\"
+        alias wine=\"\(wineBin)\"
+        alias winecfg=\"\(wineBin) winecfg\"
+        alias msiexec=\"\(wineBin) msiexec\"
+        alias regedit=\"\(wineBin) regedit\"
+        alias regsvr32=\"\(wineBin) regsvr32\"
+        alias wineboot=\"\(wineBin) wineboot\"
+        alias wineconsole=\"\(wineBin) wineconsole\"
+        alias winedbg=\"\(wineBin) winedbg\"
+        alias winefile=\"\(wineBin) winefile\"
+        alias winepath=\"\(wineBin) winepath\"
         """
 
         let env = constructWineEnvironment(for: bottle, environment: constructWineEnvironment(for: bottle))
@@ -190,6 +204,14 @@ public class Wine {
         }
 
         return result.joined()
+    }
+
+    /// Update a bottle's Wine prefix to match the currently installed Wine
+    /// version (`wineboot -u`). Run this after the bundled Wine has been upgraded
+    /// so the prefix's bundled DLLs and registry are refreshed.
+    @discardableResult
+    public static func bootUpdate(bottle: Bottle) async throws -> String {
+        return try await runWine(["wineboot", "-u"], bottle: bottle)
     }
 
     public static func wineVersion() async throws -> String {

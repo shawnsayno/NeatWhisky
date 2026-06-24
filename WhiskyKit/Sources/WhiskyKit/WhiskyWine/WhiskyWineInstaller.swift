@@ -47,8 +47,29 @@ public class WhiskyWineInstaller {
 
             try Tar.untar(tarBall: from, toURL: applicationFolder)
             try FileManager.default.removeItem(at: from)
+            ensureWine64Shim()
         } catch {
             print("Failed to install WhiskyWine: \(error)")
+        }
+    }
+
+    /// Modern Wine (11.x, WoW64) ships a single `wine` binary, while older builds
+    /// and parts of the toolchain expect `wine64`. If only `wine` is present,
+    /// create a `wine64 -> wine` symlink so both names resolve.
+    public static func ensureWine64Shim() {
+        let fileManager = FileManager.default
+        let wine = binFolder.appending(path: "wine")
+        let wine64 = binFolder.appending(path: "wine64")
+
+        guard fileManager.fileExists(atPath: wine.path),
+              !fileManager.fileExists(atPath: wine64.path) else {
+            return
+        }
+
+        do {
+            try fileManager.createSymbolicLink(at: wine64, withDestinationURL: wine)
+        } catch {
+            print("Failed to create wine64 shim: \(error)")
         }
     }
 
@@ -61,12 +82,11 @@ public class WhiskyWineInstaller {
     }
 
     public static func shouldUpdateWhiskyWine() async -> (Bool, SemanticVersion) {
-        let versionPlistURL = "https://data.getwhisky.app/Wine/WhiskyWineVersion.plist"
         let localVersion = whiskyWineVersion()
 
         var remoteVersion: SemanticVersion?
 
-        if let remoteUrl = URL(string: versionPlistURL) {
+        if let remoteUrl = WhiskyWineSource.versionPlistURL {
             remoteVersion = await withCheckedContinuation { continuation in
                 URLSession(configuration: .ephemeral).dataTask(with: URLRequest(url: remoteUrl)) { data, _, error in
                     do {
