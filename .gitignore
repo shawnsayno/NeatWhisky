@@ -50,6 +50,9 @@ playground.xcworkspace
 
 .build/
 
+# NeatWhisky release artifacts (Wine Libraries tarball etc.)
+dist/
+
 # CocoaPods
 #
 # We recommend against adding the Pods directory to your .gitignore. However
