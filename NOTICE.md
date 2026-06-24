@@ -21,26 +21,33 @@ stating that you modified it"). It will grow as milestones land.
 
 - Renamed product to **NeatWhisky**; changed bundle identifiers to `app.neatwhisky*`;
   repointed in-app website/GitHub links to the NeatWhisky repository.
-- Repointed the bundled-Wine download source from `data.getwhisky.app` to a
-  centralized, mirror-ready `WhiskyWineSource` (NeatWhisky GitHub release assets),
-  laying groundwork for switchable mirrors.
 - Targets a modern **Wine Staging 11.x** build instead of Wine 7.7: bumped the
   default bottle Wine version to 11.10.0, added a `wine64 -> wine` compatibility
   shim created on install, and made `Wine.wineBinary` resolve `wine64`-or-`wine`
-  at runtime so WoW64 builds work.
-- Added `Wine.bootUpdate(bottle:)` (`wineboot -u`) so an existing bottle's prefix
-  can be refreshed after the bundled Wine is upgraded (auto-trigger wired with the
-  Bootstrapper / bottle-open flow).
+  at runtime so WoW64 builds work. Added `Wine.bootUpdate(bottle:)` (`wineboot -u`).
 - Switched the `WhiskyKit` Swift package dependency URL from SSH to HTTPS so the
   package and CI build without requiring an SSH key.
-- (Planned) Full open-source graphics stack only (Wine + DXVK + MoltenVK);
-  NeatWhisky does **not** bundle GPTK / CrossOver components.
-- Added a **Steam fix** layer (`SteamFix/`): a `steamwebhelper` wrapper that
-  forces CEF into `--disable-gpu --single-process` (fixes the CEF 126 black-window
-  bug) and is wrapped in a Job Object (fixes the close/restart loop), plus CJK
-  font installation and launch-argument configuration.
-- (Planned) A one-click Bootstrapper: Rosetta 2, dependency setup, automatic
-  download + silent install of the latest Steam, and automatic application of fixes.
+- **Unified, mirror-aware download layer** (`DownloadSources`): every network
+  asset (Wine build, Steam installer, winetricks) is fetched through switchable
+  mirrors (official / China / global) with automatic failover. `WhiskyWineSource`
+  is now a thin facade over it.
+- **Full open-source graphics stack** (`GraphicsStack`): Wine + DXVK + MoltenVK,
+  with DXVK enabled by default for new bottles. NeatWhisky does **not** bundle
+  GPTK / CrossOver components.
+- **Recipe engine** (`AppRecipe` + `RecipeTools`): a per-app fix framework with
+  `detect / apply / repair / status`, plus reusable helpers (winetricks, registry,
+  file install, launch-argument/locale configuration) built on `Wine`.
+- **`SteamRecipe`** implementing the Steam fixes as a recipe:
+  - CJK fonts via `winetricks cjkfonts` + registry font fallback (fixes 乱码);
+  - the `steamwebhelper` wrapper (bundled in the app) forcing CEF into
+    `--disable-gpu --single-process` inside a Job Object (fixes the black window
+    and the close/restart loop), with backup/restore-aware injection;
+  - launch arguments (`-cef-disable-gpu -cef-disable-gpu-compositing
+    -noverifyfiles`) and a CJK-aware locale written to `ProgramSettings`.
+- **One-click `SteamBootstrapper`**: verifies macOS, ensures Wine + Rosetta 2,
+  creates a dedicated Steam bottle, downloads and silently installs the latest
+  official Steam (`SteamSetup.exe /S`), applies the Steam fixes, reports progress,
+  and rolls back the bottle on failure.
 
 ## Upstream credits & acknowledgments
 

@@ -132,7 +132,10 @@ public enum DXVKHUD: Codable, Equatable {
 }
 
 public struct BottleDXVKConfig: Codable, Equatable {
-    var dxvk: Bool = false
+    // NeatWhisky uses a fully open-source graphics stack (Wine + DXVK + MoltenVK)
+    // and enables DXVK by default so Direct3D games translate via Vulkan/Metal
+    // out of the box. See `GraphicsStack` for the rationale.
+    var dxvk: Bool = true
     var dxvkAsync: Bool = true
     var dxvkHud: DXVKHUD = .off
 
@@ -140,7 +143,7 @@ public struct BottleDXVKConfig: Codable, Equatable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.dxvk = try container.decodeIfPresent(Bool.self, forKey: .dxvk) ?? false
+        self.dxvk = try container.decodeIfPresent(Bool.self, forKey: .dxvk) ?? true
         self.dxvkAsync = try container.decodeIfPresent(Bool.self, forKey: .dxvkAsync) ?? true
         self.dxvkHud = try container.decodeIfPresent(DXVKHUD.self, forKey: .dxvkHud) ?? .off
     }

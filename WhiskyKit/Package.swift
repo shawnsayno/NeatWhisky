@@ -36,7 +36,10 @@ let package = Package(
     targets: [
         .target(
             name: "WhiskyKit",
-            dependencies: ["SemanticVersion"]
+            dependencies: ["SemanticVersion"],
+            resources: [
+                .copy("Resources/SteamFix")
+            ]
         )
     ],
     swiftLanguageVersions: [.version("6")]
