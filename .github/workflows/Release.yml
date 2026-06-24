@@ -1,26 +1,20 @@
 name: Release
 
+# Placeholder release workflow for NeatWhisky.
+# The upstream Whisky release workflow (Discord webhook + Whisky-App Homebrew cask)
+# has been removed because it referenced another org's secrets and cask.
+# TODO (M12 分发): sign + notarize the app, attach the DMG to the GitHub Release,
+# and bump the NeatWhisky Homebrew cask.
+
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 jobs:
-  release:
-    name: Release
+  placeholder:
+    name: Release (not yet configured)
     runs-on: ubuntu-latest
     steps:
-      - name: Create Discord Embed
-        uses: tsickert/discord-webhook@v5.3.0
-        with:
-          webhook-url: ${{ secrets.WEBHOOK }}
-          embed-title: ${{ github.event.release.name }}
-          embed-url: https://github.com/Whisky-App/Whisky/releases/download/${{ github.event.release.tag_name }}/Whisky.zip
-          embed-description: ${{ github.event.release.body }}
-          embed-color: 9442302
-
-      - name: Update Homebrew Cask
-        uses: macauley/action-homebrew-bump-cask@v1
-        with:
-          token: ${{secrets.BREW_TOKEN}}
-          org: Whisky-App
-          cask: whisky
+      - name: Notice
+        run: echo "NeatWhisky release pipeline is not configured yet. See M12 in docs/build-plan.md."

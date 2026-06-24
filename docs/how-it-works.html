@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NeatWhisky · 技术原理 — 用不再维护的 Whisky 跑通 Steam</title>
+<style>
+  :root{
+    --bg:#0f1117; --card:#171a21; --card2:#1b2838; --accent:#66c0f4; --accent2:#1a9fff;
+    --ok:#5ba32b; --warn:#e0a526; --err:#c0392b; --text:#c7d5e0; --muted:#8f98a0; --line:#2a3f5a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:linear-gradient(160deg,#0f1117,#1b2838);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",sans-serif;line-height:1.7}
+  .wrap{max-width:960px;margin:0 auto;padding:40px 24px 80px}
+  header{text-align:center;padding:32px 0 24px;border-bottom:1px solid var(--line);margin-bottom:32px}
+  header h1{font-size:30px;margin:0 0 10px;color:#fff;font-weight:700}
+  header .sub{color:var(--muted);font-size:15px}
+  .badges{margin-top:16px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+  .badge{background:var(--card2);border:1px solid var(--line);border-radius:20px;padding:5px 14px;font-size:13px;color:var(--accent)}
+  h2{font-size:22px;color:#fff;margin:40px 0 14px;padding-left:12px;border-left:4px solid var(--accent)}
+  h3{font-size:17px;color:var(--accent);margin:24px 0 10px}
+  p{margin:10px 0}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 24px;margin:16px 0}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:10px 12px;text-align:left;vertical-align:top}
+  th{background:var(--card2);color:#fff}
+  code{background:#0b0e14;color:#9fe0ff;padding:2px 7px;border-radius:5px;font-family:"SF Mono",Menlo,monospace;font-size:13px}
+  pre{background:#0b0e14;border:1px solid var(--line);border-radius:10px;padding:16px 18px;overflow-x:auto;
+    font-family:"SF Mono",Menlo,monospace;font-size:13px;color:#c8e8ff;line-height:1.55}
+  pre .cm{color:#5a6b7a}
+  .tag{display:inline-block;font-size:12px;font-weight:600;padding:2px 9px;border-radius:6px;margin-right:6px}
+  .t-ok{background:rgba(91,163,43,.2);color:#8fd255;border:1px solid var(--ok)}
+  .step{display:flex;align-items:flex-start;gap:14px;margin:14px 0}
+  .step .num{flex:0 0 34px;height:34px;width:34px;border-radius:50%;background:var(--accent);color:#03263b;
+    font-weight:700;display:flex;align-items:center;justify-content:center;font-size:15px}
+  .note{border-left:3px solid var(--accent);background:var(--card2);padding:12px 16px;border-radius:0 8px 8px 0;margin:14px 0}
+  .note.warn{border-color:var(--warn)}
+  .note.err{border-color:var(--err)}
+  ul{margin:10px 0;padding-left:22px}
+  li{margin:6px 0}
+  .kvs{font-size:14px}
+  footer{margin-top:50px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:13px;text-align:center}
+  .flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 0;font-size:13px}
+  .flow .box{background:var(--card2);border:1px solid var(--line);padding:8px 12px;border-radius:8px}
+  .flow .arrow{color:var(--accent);font-weight:700}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>NeatWhisky · 技术原理</h1>
+  <div class="sub">在 Apple Silicon (macOS) 上，绕过 Whisky 停更的 Wine 7.7，解决乱码、闪退、黑屏与关闭重启</div>
+  <div class="badges">
+    <span class="badge">Whisky（社区版 · 已停更）</span>
+    <span class="badge">Wine Staging 11.x</span>
+    <span class="badge">Steam 客户端 CEF 126</span>
+    <span class="badge">Apple M 系列 / macOS 15</span>
+  </div>
+</header>
+
+<div class="card">
+<p>本文是 NeatWhisky「为什么这样修」的技术深潜，面向想了解内部机制或排障的人。README 面向小白只讲价值与一键体验，技术细节都在这里。</p>
+</div>
+
+<h2>1. 背景：Whisky 停更带来的连锁问题</h2>
+<div class="card">
+<p>Whisky 是 macOS 上的图形化 Wine 前端，已停止维护，内置 Wine 长期停在 <b>Wine 7.7（2022 年）</b>。而 2026 年的 Steam 客户端使用 <b>CEF 126（Chromium 内核）</b>，老 Wine 无法承载，于是出现一连串问题：</p>
+<table>
+  <tr><th>现象</th><th>根本原因</th><th>结果</th></tr>
+  <tr><td>界面中文乱码（方块/问号）</td><td>Wine 前缀缺少 CJK 字体与字体链接</td><td><span class="tag t-ok">已解决</span></td></tr>
+  <tr><td>启动即闪退 / steamwebhelper 崩溃循环</td><td>Wine 7.7 无法运行 CEF 126</td><td><span class="tag t-ok">已解决</span></td></tr>
+  <tr><td>能启动但界面全黑</td><td>CEF 126 在 Wine 11 下 GPU 合成绘制为黑窗</td><td><span class="tag t-ok">已解决</span></td></tr>
+  <tr><td>关闭后自动重启、关不掉</td><td>包装器子进程变成孤儿残留</td><td><span class="tag t-ok">已解决</span></td></tr>
+</table>
+<p class="note"><b>Whisky 只是个外壳</b>，真正干活的是底层 Wine 与独立的 Wine 前缀（bottle）。所以无需换掉 Whisky，只要替换其使用的 Wine、并对前缀做针对性配置，现代 Steam 就能跑起来。</p>
+</div>
+
+<h2>2. 核心思路</h2>
+<div class="card">
+<div class="flow">
+  <span class="box">老 Wine 7.7 跑不动 CEF 126</span><span class="arrow">→</span>
+  <span class="box">① 换 Wine 11.x</span><span class="arrow">→</span>
+  <span class="box">不再闪退</span><span class="arrow">→</span>
+  <span class="box">② 装 CJK 字体</span><span class="arrow">→</span>
+  <span class="box">不再乱码</span><span class="arrow">→</span>
+  <span class="box">③ 强制 CEF 单进程</span><span class="arrow">→</span>
+  <span class="box">不再黑屏</span><span class="arrow">→</span>
+  <span class="box">④ 包装器进程归一</span><span class="arrow">→</span>
+  <span class="box">能正常关闭</span>
+</div>
+<p>四步分别针对四个问题，前一步是后一步的前提。其中第③步是关键：CEF 126 在 Wine 11 下默认的多进程 + GPU 合成会把窗口绘制成全黑；而 Chromium 的 <code>--single-process --disable-gpu</code> 模式可绕开。但 Steam 不会把这两个标志透传给子进程，所以必须用一个<b>包装器（wrapper）</b>替换 <code>steamwebhelper.exe</code>，由它在调用真正内核时强行追加这些标志。</p>
+</div>
+
+<h2>3. 步骤一 · Wine 7.7 → Wine Staging 11.x</h2>
+<div class="card">
+<div class="step"><div class="num">1</div><div>下载现代 macOS 版 Wine Staging 11.x（如 Gcenx 构建），解压备用。</div></div>
+<div class="step"><div class="num">2</div><div>备份并替换 Whisky 共享 Wine 目录（<code>~/Library/Application Support/&lt;bundleid&gt;/Libraries/Wine</code>）。</div></div>
+<div class="step"><div class="num">3</div><div>Wine 11 是单一 WoW64 的 <code>wine</code>，而 Whisky 调用 <code>wine64</code>，补符号链接：<code>ln -s wine wine64</code>。</div></div>
+<div class="step"><div class="num">4</div><div>修改 <code>WhiskyWineVersion.plist</code> 版本为 11.x，防止被降级回 7.7。</div></div>
+<div class="step"><div class="num">5</div><div>用新 Wine 升级既有前缀：<code>wineboot -u</code>。</div></div>
+<p class="note">完成后闪退/崩溃循环消失，但还有乱码与黑屏，继续后续步骤。</p>
+</div>
+
+<h2>4. 步骤二 · 中文乱码</h2>
+<div class="card">
+<p>根因是前缀缺 CJK 字体且字体替换/链接没指向有效字体。用 winetricks 安装字体包并自动配置 FontLink：</p>
+<pre>export WINEPREFIX=&lt;bottle&gt;
+winetricks cjkfonts</pre>
+<p>之后 <code>drive_c/windows/Fonts/</code> 会新增 <code>sourcehansans.ttc</code> 等，并在 <code>system.reg</code> 中为 <code>Microsoft Sans Serif</code> / <code>Tahoma</code> 建立 FontLink，重启 Steam 后中文正常。</p>
+</div>
+
+<h2>5. 步骤三 · 界面黑屏（steamwebhelper 包装器）</h2>
+<div class="card">
+<p>升级 Wine 后能启动但全黑——CEF 126 在 Wine 11 的已知渲染 bug。让 CEF 以 <code>--disable-gpu --single-process</code> 运行即可绕开。由于 Steam 不透传这些标志，编译一个极小的 Windows 程序作为 <b>包装器</b>，替换 <code>steamwebhelper.exe</code>，由它启动真身（改名为 <code>steamwebhelper_orig.exe</code>）并追加标志。</p>
+<pre>brew install mingw-w64
+x86_64-w64-mingw32-gcc swh_wrapper.c -o steamwebhelper_wrapper.exe -mwindows -O2 -municode</pre>
+<pre>for d in cef.win64 cef.win7x64; do
+  D="$BOTTLE/drive_c/Program Files (x86)/Steam/bin/cef/$d"
+  [ -f "$D/steamwebhelper_orig.exe" ] || mv "$D/steamwebhelper.exe" "$D/steamwebhelper_orig.exe"
+  cp steamwebhelper_wrapper.exe "$D/steamwebhelper.exe"
+done</pre>
+<div class="note">验证：启动后查看进程，应只剩约 <b>3 个</b> steamwebhelper（包装器外壳 + 单进程内核 + crashpad），且内核命令行末尾带 <code>--disable-gpu --single-process</code>。</div>
+</div>
+
+<h2>6. 步骤四 · 关不掉、不停重启</h2>
+<div class="card">
+<p>最初的包装器只是简单启动子进程。Steam 想重启界面时只杀外壳，<b>真身子进程变孤儿残留</b>，Steam 误以为界面崩溃便反复拉起——表现为「关不掉、不断重启」。</p>
+<p>修复：包装器内使用 Windows <b>Job Object</b> + <code>JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE</code>。外壳退出时操作系统连同子进程一起结束，生命周期干净。</p>
+</div>
+
+<h2>7. 步骤五 · 启动参数与防文件还原</h2>
+<div class="card">
+<pre>-cef-disable-gpu -cef-disable-gpu-compositing -noverifyfiles</pre>
+<table>
+  <tr><th>参数</th><th>作用</th></tr>
+  <tr><td><code>-cef-disable-gpu</code> / <code>-cef-disable-gpu-compositing</code></td><td>关闭 CEF GPU 加速/合成，配合包装器修复渲染</td></tr>
+  <tr><td><code>-noverifyfiles</code></td><td><b>关键</b>：阻止 Steam 启动时把包装器还原成原版</td></tr>
+</table>
+</div>
+
+<h2>8. 维护与自愈</h2>
+<div class="card">
+<p>Steam 大更新可能覆盖包装器导致黑屏复发。重新安装包装器即可恢复（见 <code>SteamFix/reapply-wrapper.sh</code>）。NeatWhisky 会在启动 Steam 前自动校验并按需重装。</p>
+</div>
+
+<footer>
+  NeatWhisky 技术原理文档 · 基于 GPL-3.0 的 Whisky 衍生项目 · 仅供技术参考
+</footer>
+
+</div>
+</body>
+</html>

@@ -1,81 +1,66 @@
 <div align="center">
 
-  # Whisky 🥃 
-  *Wine but a bit stronger*
-  
-  ![](https://img.shields.io/github/actions/workflow/status/IsaacMarovitz/Whisky/SwiftLint.yml?style=for-the-badge)
-  [![](https://img.shields.io/discord/1115955071549702235?style=for-the-badge)](https://discord.gg/CsqAfs9CnM)
+# NeatWhisky 🥃
+**Zero to playing, one click — no terminal, no Wine knowledge.**
+
+Run Steam on your Apple Silicon Mac. NeatWhisky sets everything up for you and
+fixes the bugs that break Steam on a stock Wine setup.
+
+English · [简体中文](README.zh-CN.md)
+
 </div>
 
-## Maintenance Notice
-
-[Whisky is no longer actively maintained](https://docs.getwhisky.app/maintenance-notice). Apps and games may break at any time.
-
-<img width="650" alt="Config" src="https://github.com/Whisky-App/Whisky/assets/42140194/d0a405e8-76ee-48f0-92b5-165d184a576b">
-
-Familiar UI that integrates seamlessly with macOS
-
-<div align="right">
-  <img width="650" alt="New Bottle" src="https://github.com/Whisky-App/Whisky/assets/42140194/ed1a0d69-d8fb-442b-9330-6816ba8981ba">
-
-  One-click bottle creation and management
-</div>
-
-<img width="650" alt="debug" src="https://user-images.githubusercontent.com/42140194/229176642-57b80801-d29b-4123-b1c2-f3b31408ffc6.png">
-
-Debug and profile with ease
-
 ---
 
-Whisky provides a clean and easy to use graphical wrapper for Wine built in native SwiftUI. You can make and manage bottles, install and run Windows apps and games, and unlock the full potential of your Mac with no technical knowledge required. Whisky is built on top of CrossOver 22.1.1, and Apple's own `Game Porting Toolkit`.
+## What is NeatWhisky?
 
-Translated on [Crowdin](https://crowdin.com/project/whisky).
+NeatWhisky is a maintained fork of the (now archived) [Whisky](https://github.com/Whisky-App/Whisky).
+Whisky stopped at Wine 7.7 and its maintainer said app-specific fixes — like Steam —
+would never be made. **NeatWhisky picks up exactly there.**
 
----
+Its goal is simple: a complete beginner should be able to go from a fresh Mac to
+**playing on Steam with a single click**, without ever touching a terminal or
+learning what "Wine", "bottle", or "prefix" means.
 
-## System Requirements
-- CPU: Apple Silicon (M-series chips)
-- OS: macOS Sonoma 14.0 or later
+## The problem it solves
 
-## Homebrew
+On a stock modern-Wine setup, Steam on Apple Silicon is broken in several ways:
 
-Whisky is on homebrew! Install with 
-`brew install --cask whisky`.
+| Symptom | NeatWhisky |
+| --- | --- |
+| Garbled / missing Chinese (CJK) text | Fixed automatically |
+| Crashes / `steamwebhelper` crash loop | Fixed (modern Wine) |
+| Launches but the window is all black | Fixed (CEF single-process wrapper) |
+| Can't be closed, keeps relaunching | Fixed (Job Object process management) |
 
-## My game isn't working!
+## How it works (for you)
 
-Some games need special steps to get working. Check out the [wiki](https://github.com/IsaacMarovitz/Whisky/wiki/Game-Support).
+1. Download NeatWhisky and drag it to Applications.
+2. Open it and click **Start**.
+3. Watch the progress bar. NeatWhisky automatically:
+   - checks your Mac and installs Rosetta 2 if needed,
+   - sets up a modern Wine + open-source graphics stack (DXVK + MoltenVK),
+   - creates a dedicated Steam environment,
+   - **downloads and silently installs the latest Steam**,
+   - applies all the fixes above.
+4. Steam opens, in your language, not black, and closes normally.
 
----
+> Heavy AAA 3D titles are out of scope of the "it just works" promise: NeatWhisky
+> uses a fully open-source graphics stack and does not bundle Apple's Game Porting
+> Toolkit or CrossOver components.
 
-## Credits & Acknowledgments
+## Status
 
-Whisky is possible thanks to the magic of several projects:
+Early development. See the build plan in [`docs/`](docs/) and the technical
+deep-dive in [`docs/how-it-works.html`](docs/how-it-works.html).
 
-- [msync](https://github.com/marzent/wine-msync) by marzent
-- [DXVK-macOS](https://github.com/Gcenx/DXVK-macOS) by Gcenx and doitsujin
-- [MoltenVK](https://github.com/KhronosGroup/MoltenVK) by KhronosGroup
-- [Sparkle](https://github.com/sparkle-project/Sparkle) by sparkle-project
-- [SemanticVersion](https://github.com/SwiftPackageIndex/SemanticVersion) by SwiftPackageIndex
-- [swift-argument-parser](https://github.com/apple/swift-argument-parser) by Apple
-- [SwiftTextTable](https://github.com/scottrhoyt/SwiftyTextTable) by scottrhoyt
-- [CrossOver 22.1.1](https://www.codeweavers.com/crossover) by CodeWeavers and WineHQ
-- D3DMetal by Apple
+## Requirements
 
-Special thanks to Gcenx, ohaiibuzzle, and Nat Brown for their support and contributions!
+- Apple Silicon (M-series) Mac
+- macOS Sonoma 14.0 or later
 
----
+## License & attribution
 
-<table>
-  <tr>
-    <td>
-        <picture>
-          <source media="(prefers-color-scheme: dark)" srcset="./images/cw-dark.png">
-          <img src="./images/cw-light.png" width="500">
-        </picture>
-    </td>
-    <td>
-        Whisky doesn't exist without CrossOver. Support the work of CodeWeavers using our <a href="https://www.codeweavers.com/store?ad=1010">affiliate link</a>.
-    </td>
-  </tr>
-</table>
+NeatWhisky is a derivative of Whisky and is licensed under **GPL-3.0** (see
+[`LICENSE`](LICENSE)). For the fork lineage and the list of changes relative to
+upstream, see [`NOTICE.md`](NOTICE.md).
