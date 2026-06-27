@@ -35,7 +35,7 @@ On a stock modern-Wine setup, Steam on Apple Silicon is broken in several ways:
 
 ## How it works (for you)
 
-1. Download NeatWhisky and drag it to Applications.
+1. Install NeatWhisky (see [Install](#install) below).
 2. Open it and click **Start**.
 3. Watch the progress bar. NeatWhisky automatically:
    - checks your Mac and installs Rosetta 2 if needed,
@@ -49,16 +49,30 @@ On a stock modern-Wine setup, Steam on Apple Silicon is broken in several ways:
 > uses a fully open-source graphics stack and does not bundle Apple's Game Porting
 > Toolkit or CrossOver components.
 
+## Install
+
+NeatWhisky is currently distributed via a Homebrew Cask. A signed, double-click
+DMG for complete beginners is planned once Apple Developer ID signing is set up.
+
+```bash
+brew install --cask shawnsayno/tap/neatwhisky
+```
+
+The cask strips macOS quarantine on install, so NeatWhisky launches on first
+open with no extra steps. Find it in Launchpad or `/Applications/NeatWhisky.app`.
+
 ## Status
 
 The one-click experience is built: the onboarding wizard, the fix engine, the
 Steam recipe (CJK fonts, black-window + restart-loop wrapper, launch options),
 the self-heal on launch, and the headless bootstrapper are all implemented.
+A hosted NeatWhisky Wine 11.x build (Wine + DXVK + MoltenVK, no GPTK/CrossOver)
+is available, and the CI pipeline builds and publishes a DMG on every release.
 
-Two things are needed before a public, double-click-ready download:
-
-- a hosted NeatWhisky Wine 11.x build (Wine + DXVK + MoltenVK, no GPTK/CrossOver), and
-- a Developer ID-signed + notarized release (the CI pipeline is in place).
+Distribution currently goes through a Homebrew Cask (see [Install](#install)).
+A Developer ID-signed + notarized, double-click DMG for complete beginners is
+the planned next step once Apple signing is configured — the CI pipeline for it
+is already in place.
 
 See the build plan in [`docs/`](docs/) and the technical deep-dive in
 [`docs/how-it-works.html`](docs/how-it-works.html).
@@ -72,4 +86,4 @@ See the build plan in [`docs/`](docs/) and the technical deep-dive in
 
 NeatWhisky is a derivative of Whisky and is licensed under **GPL-3.0** (see
 [`LICENSE`](LICENSE)). For the fork lineage and the list of changes relative to
-upstream, see [`NOTICE.md`](NOTICE.md).
+upstream, see [`NOTICE.md`](docs/NOTICE.md).

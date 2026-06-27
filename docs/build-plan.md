@@ -2,45 +2,9 @@
 name: NeatWhisky · Steam 一键适配 Fork
 overview: NeatWhisky —— 基于 GPL-3.0 的 Whisky 源码 fork 一个 SwiftUI 应用。面向小白做到「从零到能玩」全程一键：自动备齐依赖(Rosetta/Wine/全开源图形栈/bottle)、自动下载并静默安装最新 Steam、自动套用修复(乱码/黑屏/关闭重启)，并可自愈。图形栈走全开源(Wine+DXVK+MoltenVK)，下载默认官方源且可切换镜像。
 todos:
-  - id: m1-scaffold
-    content: Fork Whisky v2.3.5,改名为NeatWhisky/改Bundle ID(app.neatwhisky),保留GPL-3.0署名与改动声明,搭建GitHub Actions(编译Swift app + mingw交叉编译wrapper.exe并打包)
-    status: pending
-  - id: m2-wine
-    content: 改造WhiskyWineInstaller下载源为现代Wine Staging 11.x + 版本校验防降级;修复Wine.swift中wineBinary硬编码wine64问题(优先wine/建symlink);安装后自动wineboot -u
-    status: pending
-  - id: m3-graphics
-    content: 全开源图形栈:打包DXVK + 确认Wine自带MoltenVK,显式不含GPTK/CrossOver组件(规避再分发法律风险);bottle启用DXVK
-    status: pending
-  - id: m4-recipe-engine
-    content: WhiskyKit新增Recipes模块:AppRecipe协议(detect/apply/repair/status)与通用工具(winetricks/registry/installFile/setArguments),复用Wine.runWineProcess
-    status: pending
-  - id: m5-fonts
-    content: 实现SteamRecipe乱码修复:检测缺失CJK字体时执行winetricks cjkfonts并配置FontLink
-    status: pending
-  - id: m6-wrapper
-    content: 预编译带Job Object+single-process的steamwebhelper_wrapper.exe随App打包;apply时备份orig并注入cef.win64/cef.win7x64,解决黑屏与关闭重启
-    status: pending
-  - id: m7-args
-    content: SteamRecipe写入启动参数(-cef-disable-gpu -cef-disable-gpu-compositing -noverifyfiles)与locale到ProgramSettings
-    status: pending
-  - id: m8-bootstrap
-    content: 小白开箱自举Bootstrapper:检测芯片/macOS版本、自动装Rosetta2、自动创建专用Steam bottle、自动下载并静默安装最新Steam(SteamSetup.exe /S)、一条龙编排+进度UI+失败回滚
-    status: pending
-  - id: m9-mirror
-    content: 下载源管理:Wine构建/Steam/winetricks字体统一抽象为可配置源,默认官方+可切换镜像(兼顾国内大陆与海外),支持失败自动换源
-    status: pending
-  - id: m10-gui
-    content: SwiftUI界面集成:首启开箱向导(一键开始→进度→完成即玩),bottle详情页一键适配/状态展示
-    status: pending
-  - id: m11-selfheal
-    content: 自愈机制:重新应用修复入口+启动前校验wrapper是否被Steam还原并自动重装
-    status: pending
-  - id: m12-dist
-    content: 分发:Developer ID签名+公证(避免Gatekeeper拦小白),GitHub Releases出DMG,提供Homebrew Cask,CI自动出包
-    status: pending
-  - id: m13-docs
-    content: 文档(中英双语):从项目价值角度撰写README——主打"小白从零到能玩、全程一键"的价值主张与体验,而非技术实现;技术原理仅作次级链接
-    status: pending
+  - id: ops-sign-notarize
+    content: 配置 Apple Developer ID 证书与 App Store Connect API 密钥(Release.yml 已就绪,缺 MACOS_CERT_P12 / AC_API_* 等 secrets),产出已签名+公证的 DMG 让小白可直接双击。待项目成熟后启用,作为 cask 之外的「双击即用」主路径;需付费 Apple 开发者账号,无法纯代码完成
+    status: deferred
 isProject: false
 ---
 
@@ -82,6 +46,13 @@ flowchart TD
 - `Programs/ProgramSettings`（bottle 内 `Program Settings/Steam.exe.plist`）：`arguments` / `locale` 字段，配方写入启动参数。
 
 ## 实施里程碑
+
+> 实现状态（2026-06）：M1–M13 的代码均已落地（见 `NOTICE.md` 改动清单与 `WhiskyKit` 测试）。
+> Wine 11.x 构建产物已托管于 GitHub Releases `v11.10.0`，仓库已公开，官方 + 国内镜像
+> （gh-proxy.com / ghfast.top）匿名下载链路已实测可达。
+> **分发**：当前主路径为 Homebrew Cask（自有 tap，cask 内 postflight 自动去隔离，见顶部
+> `ops-brew-tap`）；Apple Developer ID 签名 + 公证推迟到项目成熟后启用（见 `ops-sign-notarize`，deferred）。
+> 以下里程碑保留作为设计说明。
 
 ### M1 项目脚手架与 GPL 合规
 - Fork v2.3.5，改名为 NeatWhisky、改 Bundle ID（如 `app.neatwhisky`）、保留原 LICENSE 与版权头、README 注明衍生自 Whisky 与改动点（GPL-3.0 要求）。
@@ -131,9 +102,10 @@ flowchart TD
 - 「重新应用修复」入口（对应本机 `reapply-wrapper.sh`）：Steam 大更新覆盖 wrapper 后一键恢复。
 - 启动 Steam 前自动校验 wrapper 是否被还原，被还原则自动重装。
 
-### M12 分发（小白可直接打开）
-- **Developer ID 签名 + 公证（必做）**：否则 Gatekeeper 直接拦住小白，与「一键」冲突。
-- GitHub Releases 出 DMG；提供 Homebrew Cask；CI 自动出包。
+### M12 分发
+- **当前：Homebrew Cask（自有 tap）**——`brew install --cask shawnsayno/tap/neatwhisky`。cask 内置 `postflight` 自动剥离 `com.apple.quarantine`，安装即可启动，既绕过 Homebrew 对未签名 cask 的隔离，也规避正在被 Homebrew 废弃的 `--no-quarantine`。面向已使用 Homebrew 的用户。
+- **成熟后：Developer ID 签名 + 公证**——产出可双击的 DMG，让完全不碰命令行的小白也能用；需付费 Apple 开发者账号（见顶部 `ops-sign-notarize`，已 deferred）。
+- GitHub Releases 出 DMG（未签名版同时作为 cask 来源）；CI 自动出包 + 自动 bump cask。
 
 ### M13 文档（中英双语，价值导向）
 - README 以**项目价值**为主线，而非技术实现：核心叙事就是「**小白从零到能玩，全程一键**（Zero to playing, one click — no terminal, no Wine knowledge）」。

@@ -24,19 +24,26 @@ stating that you modified it"). It will grow as milestones land.
 - Targets a modern **Wine Staging 11.x** build instead of Wine 7.7: bumped the
   default bottle Wine version to 11.10.0, added a `wine64 -> wine` compatibility
   shim created on install, and made `Wine.wineBinary` resolve `wine64`-or-`wine`
-  at runtime so WoW64 builds work. Added `Wine.bootUpdate(bottle:)` (`wineboot -u`).
+  at runtime so WoW64 builds work. Added `Wine.bootUpdate(bottle:)` (`wineboot -u`)
+  and wired it into the install/upgrade flow via
+  `WhiskyWineInstaller.updateExistingBottles()` (called after install) so existing
+  bottles' prefixes are refreshed after a Wine upgrade.
 - Switched the `WhiskyKit` Swift package dependency URL from SSH to HTTPS so the
   package and CI build without requiring an SSH key.
 - **Unified, mirror-aware download layer** (`DownloadSources`): every network
   asset (Wine build, Steam installer, winetricks) is fetched through switchable
-  mirrors (official / China / global) with automatic failover. `WhiskyWineSource`
-  is now a thin facade over it.
+  mirrors (official / China / global) with automatic failover, including
+  mainland-China mirrors (gh-proxy.com / ghfast.top) for the large Wine tarball
+  + version manifest. `WhiskyWineSource` is now a thin facade over it.
 - **Full open-source graphics stack** (`GraphicsStack`): Wine + DXVK + MoltenVK,
   with DXVK enabled by default for new bottles. NeatWhisky does **not** bundle
   GPTK / CrossOver components.
 - **Recipe engine** (`AppRecipe` + `RecipeTools`): a per-app fix framework with
   `detect / apply / repair / status`, plus reusable helpers (winetricks, registry,
-  file install, launch-argument/locale configuration) built on `Wine`.
+  file install, launch-argument/locale configuration) built on `Wine`. Recipes can
+  declare a `minimumWineVersion`; the engine (`RecipeTools.ensureWineVersion`)
+  upgrades the bundled Wine on demand before applying. `SteamRecipe` requires
+  Wine ≥ 11.0.0.
 - **`SteamRecipe`** implementing the Steam fixes as a recipe:
   - CJK fonts via `winetricks cjkfonts` + registry font fallback (fixes 乱码);
   - the `steamwebhelper` wrapper (bundled in the app) forcing CEF into
@@ -60,7 +67,13 @@ stating that you modified it"). It will grow as milestones land.
 - **Release pipeline** (`.github/workflows/Release.yml`): builds, optionally
   Developer ID-signs + notarizes, packages a DMG and attaches it to the GitHub
   Release (degrades to an unsigned build without secrets); plus a Homebrew Cask
-  template (`homebrew/neatwhisky.rb`).
+  template (`homebrew/neatwhisky.rb`) that the workflow auto-bumps (version +
+  sha256, pushed to the tap) when `HOMEBREW_TAP_TOKEN` is configured.
+- **Unit tests** (`WhiskyKit/Tests/WhiskyKitTests`): Swift Testing coverage for
+  the mirror catalog/failover ordering, the recipe metadata (minimum Wine
+  version, launch arguments, CEF dirs), the open-source graphics-stack
+  invariants and bottle path resolution. Swift Testing runs via `swift test`
+  with a bare swift.org toolchain (no full Xcode required).
 
 ## Upstream credits & acknowledgments
 
