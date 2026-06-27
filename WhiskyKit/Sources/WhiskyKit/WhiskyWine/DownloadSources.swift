@@ -94,17 +94,30 @@ public enum DownloadSources {
     private static let winetricksRaw =
         "https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks"
 
+    /// Mainland-China-friendly GitHub reverse proxies. Verified to handle both
+    /// `github.com` release-asset redirects and `raw.githubusercontent.com`
+    /// (unlike ghproxy.net, which 502s on release assets). Listed in failover
+    /// order — `download(_:)` walks them when the China region is preferred or
+    /// as a fallback.
+    private static let chinaProxies = ["https://gh-proxy.com/", "https://ghfast.top/"]
+
+    /// Build one `.china` mirror spec per proxy for an upstream GitHub URL.
+    private static func chinaMirrors(of url: String) -> [(MirrorRegion, String, String)] {
+        chinaProxies.map { proxy in
+            let host = URL(string: proxy)?.host ?? proxy
+            return (.china, "China mirror (\(host))", proxy + url)
+        }
+    }
+
     /// The full catalog of mirrors for a given asset, in catalog order.
     public static func mirrors(for asset: DownloadAsset) -> [DownloadMirror] {
         switch asset {
         case .wineLibraries:
-            return makeMirrors([
-                (.official, "GitHub Releases", "\(releaseBase)/Libraries.tar.gz")
-            ])
+            let url = "\(releaseBase)/Libraries.tar.gz"
+            return makeMirrors([(.official, "GitHub Releases", url)] + chinaMirrors(of: url))
         case .wineVersionManifest:
-            return makeMirrors([
-                (.official, "GitHub Releases", "\(releaseBase)/WhiskyWineVersion.plist")
-            ])
+            let url = "\(releaseBase)/WhiskyWineVersion.plist"
+            return makeMirrors([(.official, "GitHub Releases", url)] + chinaMirrors(of: url))
         case .steamInstaller:
             return makeMirrors([
                 (.official, "Steam CDN (Fastly)",
@@ -115,10 +128,8 @@ public enum DownloadSources {
                  "https://cdn.steamstatic.com/client/installer/SteamSetup.exe")
             ])
         case .winetricks:
-            return makeMirrors([
-                (.official, "winetricks (GitHub)", winetricksRaw),
-                (.china, "winetricks (ghproxy)", "https://ghproxy.net/\(winetricksRaw)")
-            ])
+            return makeMirrors([(.official, "winetricks (GitHub)", winetricksRaw)]
+                               + chinaMirrors(of: winetricksRaw))
         }
     }
 

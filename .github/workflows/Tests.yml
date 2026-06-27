@@ -1,0 +1,29 @@
+name: Tests
+
+# Runs the WhiskyKit unit tests on a macOS runner. The tests use Swift Testing
+# (`import Testing`), which is bundled with both Xcode and bare swift.org
+# toolchains, so `swift test` works without depending on XCTest.
+
+on:
+  push:
+    paths:
+      - 'WhiskyKit/**'
+      - '.github/workflows/Tests.yml'
+  pull_request:
+    paths:
+      - 'WhiskyKit/**'
+  workflow_dispatch:
+
+jobs:
+  whiskykit:
+    name: WhiskyKit unit tests
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode 16
+        run: sudo xcode-select -s /Applications/Xcode_16.app
+
+      - name: Run unit tests
+        working-directory: WhiskyKit
+        run: swift test

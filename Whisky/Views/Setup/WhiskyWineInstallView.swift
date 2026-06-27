@@ -53,6 +53,9 @@ struct WhiskyWineInstallView: View {
         .onAppear {
             Task.detached {
                 await WhiskyWineInstaller.install(from: tarLocation)
+                // Refresh any existing bottles' prefixes against the newly
+                // installed Wine (`wineboot -u`); no-op on a first install.
+                await WhiskyWineInstaller.updateExistingBottles()
                 await MainActor.run {
                     installing = false
                 }

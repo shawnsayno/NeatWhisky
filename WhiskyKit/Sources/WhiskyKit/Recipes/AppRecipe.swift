@@ -17,6 +17,7 @@
 //
 
 import Foundation
+import SemanticVersion
 import os.log
 
 /// The health of an ``AppRecipe`` with respect to a bottle.
@@ -81,6 +82,11 @@ public protocol AppRecipe: Sendable {
     /// One-line summary of what this recipe fixes.
     var summary: String { get }
 
+    /// The minimum bundled-Wine version this recipe requires, or `nil` if it
+    /// works on any version. The engine ensures Wine satisfies this before
+    /// applying (downloading/upgrading Wine on demand — see M2).
+    var minimumWineVersion: SemanticVersion? { get }
+
     /// Whether this recipe is relevant to the given bottle.
     func detect(in bottle: Bottle) async -> Bool
 
@@ -102,6 +108,9 @@ public protocol AppRecipe: Sendable {
 }
 
 public extension AppRecipe {
+    /// By default, a recipe imposes no minimum Wine version.
+    var minimumWineVersion: SemanticVersion? { nil }
+
     /// By default, `repair` simply re-applies the recipe.
     func repair(in bottle: Bottle, progress: RecipeProgress?) async throws {
         try await apply(to: bottle, progress: progress)
@@ -109,6 +118,14 @@ public extension AppRecipe {
 
     /// By default, no pre-launch healing is needed.
     func prelaunchHeal(in bottle: Bottle) async throws {}
+
+    /// Ensure the installed bundled Wine satisfies this recipe's
+    /// ``minimumWineVersion``, downloading/installing a newer build on demand.
+    /// No-op when the recipe has no minimum or the requirement is already met.
+    func ensureWineRequirement(progress: RecipeProgress?) async throws {
+        guard let minimum = minimumWineVersion else { return }
+        try await RecipeTools.ensureWineVersion(atLeast: minimum, progress: progress)
+    }
 }
 
 /// The registry of recipes NeatWhisky ships with.

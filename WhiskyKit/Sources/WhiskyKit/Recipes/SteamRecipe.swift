@@ -17,6 +17,7 @@
 //
 
 import Foundation
+import SemanticVersion
 import os.log
 
 /// Fixes that make Steam usable under modern Wine on Apple Silicon:
@@ -33,15 +34,22 @@ public struct SteamRecipe: AppRecipe {
     public let name = "Steam"
     public let summary = "Fix Steam garbled text, black window and the close/restart loop."
 
+    /// The CEF-126 black-window fix and the WoW64 wrapper rely on a modern Wine
+    /// (Staging 11.x); older Wine (e.g. Whisky's frozen 7.7) cannot run them.
+    public let minimumWineVersion: SemanticVersion? = SemanticVersion(11, 0, 0)
+
     // MARK: - Constants
 
     static let steamRoot = "Program Files (x86)/Steam"
     static let steamExeSubpath = "Program Files (x86)/Steam/Steam.exe"
     static let cefBase = "Program Files (x86)/Steam/bin/cef"
-    static let cefDirs = ["cef.win64", "cef.win7x64"]
+    /// CEF runtime directories the wrapper is injected into.
+    public static let cefDirs = ["cef.win64", "cef.win7x64"]
     static let webHelper = "steamwebhelper.exe"
     static let webHelperOrig = "steamwebhelper_orig.exe"
-    static let launchArguments = "-cef-disable-gpu -cef-disable-gpu-compositing -noverifyfiles"
+    /// Launch options written to `ProgramSettings` (M7). `-noverifyfiles` stops
+    /// Steam from reverting the injected wrapper on launch.
+    public static let launchArguments = "-cef-disable-gpu -cef-disable-gpu-compositing -noverifyfiles"
 
     public init() {}
 
@@ -87,6 +95,11 @@ public struct SteamRecipe: AppRecipe {
         guard await detect(in: bottle) else {
             throw RecipeError.stepFailed("Steam is not installed in this bottle")
         }
+
+        // M2/M4 — make sure the bundled Wine is modern enough for these fixes,
+        // upgrading on demand before touching the bottle.
+        progress?(RecipeStep(title: "Checking Wine version", fraction: 0.05))
+        try await ensureWineRequirement(progress: progress)
 
         // M7 — launch arguments + locale (write first so -noverifyfiles is in
         // place before the wrapper is injected).

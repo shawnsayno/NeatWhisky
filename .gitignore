@@ -50,6 +50,11 @@ playground.xcworkspace
 
 .build/
 
+## Build, run & test artifacts (Swift Package Manager / Xcode / swift test)
+.swiftpm/
+*.xcresult
+*.xctestrun
+
 # NeatWhisky release artifacts (Wine Libraries tarball etc.)
 dist/
 

@@ -17,6 +17,7 @@
 //
 
 import Foundation
+import SemanticVersion
 import os.log
 
 /// Shared building blocks for ``AppRecipe`` implementations.
@@ -25,6 +26,38 @@ import os.log
 /// recipes can be written declaratively (run winetricks verbs, set registry
 /// values, drop files into the prefix, configure a program's launch arguments).
 public enum RecipeTools {
+    // MARK: - Wine version requirements
+
+    /// Ensure the installed bundled Wine is at least `minimum`, downloading and
+    /// installing the latest hosted Wine build (with mirror failover) when the
+    /// requirement is not met. This is the engine hook a recipe uses to trigger
+    /// the M2 Wine upgrade on demand.
+    public static func ensureWineVersion(
+        atLeast minimum: SemanticVersion, progress: RecipeProgress? = nil
+    ) async throws {
+        if let current = WhiskyWineInstaller.whiskyWineVersion(), current >= minimum {
+            return
+        }
+
+        progress?(RecipeStep(
+            title: "Updating Wine", detail: "This recipe needs Wine ≥ \(minimum)"
+        ))
+        let tarball = try await DownloadSources.download(.wineLibraries) { fraction in
+            progress?(RecipeStep(
+                title: "Downloading Wine", detail: "\(Int(fraction * 100))%", fraction: fraction
+            ))
+        }
+        WhiskyWineInstaller.install(from: tarball)
+        await WhiskyWineInstaller.updateExistingBottles()
+
+        guard let installed = WhiskyWineInstaller.whiskyWineVersion(), installed >= minimum else {
+            let installedString = WhiskyWineInstaller.whiskyWineVersion().map(String.init) ?? "none"
+            throw RecipeError.stepFailed(
+                "Installed Wine (\(installedString)) is older than the required \(minimum)"
+            )
+        }
+    }
+
     // MARK: - Paths
 
     /// Resolve a path inside a bottle's `C:` drive (`drive_c`).

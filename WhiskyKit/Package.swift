@@ -40,6 +40,10 @@ let package = Package(
             resources: [
                 .copy("Resources/SteamFix")
             ]
+        ),
+        .testTarget(
+            name: "WhiskyKitTests",
+            dependencies: ["WhiskyKit", "SemanticVersion"]
         )
     ],
     swiftLanguageVersions: [.version("6")]

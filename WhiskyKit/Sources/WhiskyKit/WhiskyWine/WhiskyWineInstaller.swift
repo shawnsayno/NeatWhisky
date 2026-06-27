@@ -18,6 +18,7 @@
 
 import Foundation
 import SemanticVersion
+import os.log
 
 public class WhiskyWineInstaller {
     /// The Whisky application folder
@@ -78,6 +79,28 @@ public class WhiskyWineInstaller {
             try FileManager.default.removeItem(at: libraryFolder)
         } catch {
             print("Failed to uninstall WhiskyWine: \(error)")
+        }
+    }
+
+    /// Refresh every existing bottle's prefix to match the freshly
+    /// installed/upgraded bundled Wine by running `wineboot -u` on each.
+    ///
+    /// Call this right after ``install(from:)`` on the upgrade path so a bottle
+    /// created against an older Wine has its bundled DLLs and registry updated
+    /// (otherwise a Wine 7.7 → 11.x jump can leave a stale prefix). Best-effort
+    /// and isolated per bottle: a failure on one bottle never aborts the rest.
+    /// - Parameter progress: optional callback fired with each bottle's name.
+    public static func updateExistingBottles(progress: ((String) -> Void)? = nil) async {
+        var data = BottleData()
+        for bottle in data.loadBottles() where bottle.isAvailable {
+            progress?(bottle.settings.name)
+            do {
+                try await Wine.bootUpdate(bottle: bottle)
+            } catch {
+                Logger.wineKit.warning(
+                    "wineboot -u failed for bottle `\(bottle.settings.name)`: \(error.localizedDescription)"
+                )
+            }
         }
     }
 
